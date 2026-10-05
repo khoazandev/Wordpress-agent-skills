@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { resolveInstallTargets, pluginInstallPaths } from './lib/targets.mjs';
 import { atomicInstallSkill, createBackup, readMarker, cleanLeftoverStaging } from './lib/fs-utils.mjs';
@@ -135,8 +136,30 @@ export async function main(argv, deps = {}) {
     targetSkills = requestedSkills;
   }
 
-  const homeDir = env.WAS_HOME || require('os').homedir();
+  const homedirFn = deps.homedir || os.homedir;
+  const homeDir = env.WAS_HOME || homedirFn();
   const pluginPaths = pluginInstallPaths({ env, homeDir });
+
+  function maskHome(fullPath) {
+    const platform = deps.platform || process.platform;
+    const resolvedHome = path.resolve(homeDir);
+    const resolvedPath = path.resolve(fullPath);
+    let homeStr = resolvedHome;
+    let pathStr = resolvedPath;
+    
+    if (platform === 'win32') {
+      homeStr = homeStr.toLowerCase();
+      pathStr = pathStr.toLowerCase();
+    }
+    
+    if (pathStr === homeStr) return '~';
+    if (pathStr.startsWith(homeStr + path.sep)) {
+      return '~' + path.sep + resolvedPath.substring(resolvedHome.length + 1);
+    }
+    return resolvedPath;
+  }
+  // Export maskHome for testing if needed
+  if (deps._export_maskHome) deps._export_maskHome(maskHome);
 
   let targets = [];
   try {
@@ -211,7 +234,7 @@ export async function main(argv, deps = {}) {
       plan.push({
         agents: target.agents.join(','),
         skill,
-        dest: destPath.replace(homeDir, '~'),
+        dest: maskHome(destPath),
         realDest: destPath,
         action,
         targetDir: target.targetDir,
