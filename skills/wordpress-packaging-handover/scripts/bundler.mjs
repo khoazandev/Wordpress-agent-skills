@@ -153,44 +153,83 @@ export function calculateDirSize(itemPath) {
  * @param {string|string[]} entries - Relative entry name(s) to archive inside cwd
  * @returns {string} The output zipPath
  */
-export function createZipArchive(zipPath, cwd, entries) {
+export function createZipArchive(zipPath, cwd, entries, options = {}) {
+  const runner = options.runner || execFileSync;
+  const psRunner = options.psRunner || execSync;
+  const fsOp = options.fs || fs;
+  const findBin = options.findBinary || findBinary;
+
   const normalizedZip = path.resolve(zipPath);
   const normalizedCwd = path.resolve(cwd);
 
-  fs.mkdirSync(path.dirname(normalizedZip), { recursive: true });
+  fsOp.mkdirSync(path.dirname(normalizedZip), { recursive: true });
 
   const entryList = Array.isArray(entries) ? entries : [entries];
   if (entryList.length === 0) {
     throw new Error('No entries provided to archive');
   }
 
+  const checkMagic = (p) => {
+    try {
+      if (fsOp.openSync) {
+        const fd = fsOp.openSync(p, 'r');
+        const buf = Buffer.alloc(2);
+        fsOp.readSync(fd, buf, 0, 2, 0);
+        fsOp.closeSync(fd);
+        return buf[0] === 0x50 && buf[1] === 0x4B;
+      } else {
+        const buf = fsOp.readFileSync(p);
+        return buf[0] === 0x50 && buf[1] === 0x4B;
+      }
+    } catch {
+      return false;
+    }
+  };
+
   // 1. Try native tar (bsdtar on Windows 10/11)
   try {
     const tarArgs = ['-a', '-c', '-f', normalizedZip, '-C', normalizedCwd, ...entryList];
-    execFileSync('tar', tarArgs, { stdio: 'pipe' });
-    if (fs.existsSync(normalizedZip)) {
-      return normalizedZip;
+    runner('tar', tarArgs, { stdio: 'pipe' });
+    if (fsOp.existsSync(normalizedZip)) {
+      if (checkMagic(normalizedZip)) return normalizedZip;
+      fsOp.unlinkSync(normalizedZip); // GNU tar plain tar fallback
     }
   } catch {
-    // Tar failed or not found, proceed to PowerShell fallback
+    // Tar failed
   }
 
-  // 2. PowerShell Compress-Archive fallback
+  // 2. Try zip fallback
+  try {
+    const zipBin = findBin('zip');
+    if (zipBin) {
+      const zipArgs = ['-q', '-r', normalizedZip, ...entryList];
+      runner(zipBin, zipArgs, { cwd: normalizedCwd, stdio: 'pipe' });
+      if (fsOp.existsSync(normalizedZip)) {
+        if (checkMagic(normalizedZip)) return normalizedZip;
+        fsOp.unlinkSync(normalizedZip);
+      }
+    }
+  } catch {
+    // Zip failed
+  }
+
+  // 3. PowerShell Compress-Archive fallback
   try {
     const psItems = entryList
       .map(entry => `'${path.join(normalizedCwd, entry).replace(/'/g, "''")}'`)
       .join(', ');
     const psScript = `Compress-Archive -Path ${psItems} -DestinationPath '${normalizedZip.replace(/'/g, "''")}' -Force`;
-    execSync(`powershell -NoProfile -NonInteractive -Command "${psScript}"`, { stdio: 'pipe' });
+    psRunner(`powershell -NoProfile -NonInteractive -Command "${psScript}"`, { stdio: 'pipe' });
 
-    if (fs.existsSync(normalizedZip)) {
-      return normalizedZip;
+    if (fsOp.existsSync(normalizedZip)) {
+      if (checkMagic(normalizedZip)) return normalizedZip;
+      fsOp.unlinkSync(normalizedZip);
     }
-  } catch (psErr) {
-    throw new Error(`Failed to create zip archive ${zipPath}: tar and PowerShell both failed. ${psErr.message}`);
+  } catch {
+    // PS failed
   }
 
-  return normalizedZip;
+  throw new Error(`could not create a ZIP archive: install zip or bsdtar`);
 }
 
 /**

@@ -333,11 +333,57 @@ async function runSuite() {
     createZipArchive(zipOut, tempDir, 'sub');
 
     assert.ok(fs.existsSync(zipOut), 'Archive file must be created');
+    
+    // Check magic bytes PK
+    const fd = fs.openSync(zipOut, 'r');
+    const buf = Buffer.alloc(2);
+    fs.readSync(fd, buf, 0, 2, 0);
+    fs.closeSync(fd);
+    assert.strictEqual(buf[0], 0x50, 'First byte must be 0x50 (P)');
+    assert.strictEqual(buf[1], 0x4B, 'Second byte must be 0x4B (K)');
+
     const size = calculateDirSize(zipOut);
     assert.ok(size > 0, 'Archive size must be > 0 bytes');
 
     const entries = getZipEntries(zipOut);
     assert.ok(entries.some(e => e.includes('sub/test.txt')), 'Archive entries must contain sub/test.txt');
+
+    // Test fallback injection: simulate tar writing bad magic bytes
+    let runnerCalled = [];
+    const mockRunner = (bin, args) => {
+      runnerCalled.push(bin);
+      if (bin === 'tar') {
+        fs.writeFileSync(zipOut, 'BAD_MAGIC', 'utf8'); // fake bad tar
+      } else if (bin === 'my-zip-bin') {
+        // create a valid zip manually
+        const buf = Buffer.from([0x50, 0x4B, 0x03, 0x04]);
+        fs.writeFileSync(zipOut, buf);
+      }
+    };
+    const mockFindBinary = (bin) => bin === 'zip' ? 'my-zip-bin' : null;
+    fs.rmSync(zipOut, { force: true });
+    
+    createZipArchive(zipOut, tempDir, 'sub', {
+      runner: mockRunner,
+      psRunner: () => {},
+      findBinary: mockFindBinary,
+      fs
+    });
+    
+    assert.deepStrictEqual(runnerCalled, ['tar', 'my-zip-bin'], 'Must try tar, then fallback to zip when magic bytes fail');
+    
+    // Test exception when all fail
+    runnerCalled = [];
+    fs.rmSync(zipOut, { force: true });
+    assert.throws(() => {
+      createZipArchive(zipOut, tempDir, 'sub', {
+        runner: (bin) => { runnerCalled.push(bin); fs.writeFileSync(zipOut, 'BAD'); },
+        psRunner: () => { runnerCalled.push('ps'); fs.writeFileSync(zipOut, 'BAD'); },
+        findBinary: mockFindBinary,
+        fs
+      });
+    }, /could not create a ZIP archive/);
+    assert.deepStrictEqual(runnerCalled, ['tar', 'my-zip-bin', 'ps'], 'Must try all three methods');
 
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
