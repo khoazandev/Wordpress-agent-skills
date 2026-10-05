@@ -1,5 +1,6 @@
 /**
  * Module Database Sanitizer & MySQL Dump (db_sanitizer.mjs)
+ * Module: scripts/db_sanitizer.mjs
  * 
  * Chức năng:
  * 1. Đọc và phân tích thông tin kết nối từ wp-config.php (DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_CHARSET, table_prefix).
@@ -15,46 +16,20 @@ import os from 'node:os';
 import { execSync, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { safeReplaceSerialized } from './safe_replacer.mjs';
+import { findBinary } from './lib/find-binary.mjs';
 
 /**
  * Tìm kiếm đường dẫn binary PHP khả dụng trên hệ thống.
  */
 export function findPhpBinary() {
-  const candidates = [
-    'C:\\xampp\\php\\php.exe',
-    'C:\\laragon\\bin\\php\\current\\php.exe',
-    'php'
-  ];
-  for (const bin of candidates) {
-    try {
-      execSync(`"${bin}" -v`, { stdio: 'ignore' });
-      return bin;
-    } catch {
-      // Tiếp tục kiểm tra ứng viên tiếp theo
-    }
-  }
-  return null;
+  return findBinary('php');
 }
 
 /**
  * Tìm kiếm đường dẫn binary mysqldump khả dụng trên hệ thống.
  */
 export function findMysqldumpBinary() {
-  const candidates = [
-    'C:\\xampp\\mysql\\bin\\mysqldump.exe',
-    'C:\\laragon\\bin\\mysql\\current\\bin\\mysqldump.exe',
-    'C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysqldump.exe',
-    'mysqldump'
-  ];
-  for (const bin of candidates) {
-    try {
-      execSync(`"${bin}" --version`, { stdio: 'ignore' });
-      return bin;
-    } catch {
-      // Tiếp tục kiểm tra ứng viên tiếp theo
-    }
-  }
-  return null;
+  return findBinary('mysqldump');
 }
 
 /**

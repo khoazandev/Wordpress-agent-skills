@@ -1,5 +1,6 @@
 /**
  * Module Safe Serialized URL Replacer (safe_replacer.mjs)
+ * Module: scripts/safe_replacer.mjs
  * 
  * Thuật toán tìm kiếm & thay thế URL an toàn cho WordPress:
  * - Thay thế chính xác trong các trường PHP Serialized (s:<byte_count>:"<string>";)

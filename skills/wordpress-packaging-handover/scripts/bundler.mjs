@@ -25,24 +25,13 @@ function normalizePath(p) {
   return p.replace(/\\/g, '/');
 }
 
+import { findBinary } from './lib/find-binary.mjs';
+
 /**
  * Attempts to locate a working PHP binary for DB detection fallback.
  */
 function findPhpBinary() {
-  const candidates = [
-    'C:\\xampp\\php\\php.exe',
-    'C:\\laragon\\bin\\php\\current\\php.exe',
-    'php'
-  ];
-  for (const bin of candidates) {
-    try {
-      execSync(`"${bin}" -v`, { stdio: 'ignore' });
-      return bin;
-    } catch {
-      // Continue
-    }
-  }
-  return null;
+  return findBinary('php');
 }
 
 /**
