@@ -1,0 +1,34 @@
+{
+  "name": "wordpress-agent-skills",
+  "version": "1.0.0",
+  "description": "Multi-agent WordPress skill pack for Antigravity, Claude Code, and Codex",
+  "type": "module",
+  "bin": {
+    "wordpress-agent-skills": "scripts/install.mjs"
+  },
+  "scripts": {
+    "test": "node scripts/run-tests.mjs",
+    "validate": "node scripts/validate-skills.mjs",
+    "setup-hooks": "git config core.hooksPath .githooks"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "author": "khoazandev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/khoazandev/Wordpress-agent-skills.git"
+  },
+  "files": [
+    "skills",
+    "scripts",
+    "rules",
+    "plugin.json",
+    ".claude-plugin",
+    ".codex-plugin",
+    "LICENSE",
+    "README.md",
+    "README.vi.md"
+  ]
+}
