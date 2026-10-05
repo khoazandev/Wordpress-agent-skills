@@ -31,15 +31,56 @@ async function runAsyncTest(testName, fn) {
 }
 
 /**
- * Helper to inspect archive entries inside a zip file using native tar
+ * Helper to inspect archive entries inside a zip file using pure Node.js
  */
 function getZipEntries(zipPath) {
   assert.ok(fs.existsSync(zipPath), `Zip file must exist: ${zipPath}`);
-  const output = execSync(`tar -tf "${zipPath}"`, { encoding: 'utf8' });
-  return output
-    .split(/\r?\n/)
-    .map(entry => entry.trim().replace(/\\/g, '/'))
-    .filter(Boolean);
+  const fd = fs.openSync(zipPath, 'r');
+  try {
+    const stats = fs.fstatSync(fd);
+    const size = stats.size;
+    if (size < 22) throw new Error('Not a valid ZIP (too small)');
+
+    const maxSearch = Math.min(size, 65557);
+    const buf = Buffer.alloc(maxSearch);
+    const pos = size - maxSearch;
+    fs.readSync(fd, buf, 0, maxSearch, pos);
+
+    let eocdOffset = -1;
+    for (let i = maxSearch - 22; i >= 0; i--) {
+      if (buf.readUInt32LE(i) === 0x06054b50) {
+        eocdOffset = i;
+        break;
+      }
+    }
+    if (eocdOffset === -1) {
+      throw new Error('EOCD signature not found (not a valid zip)');
+    }
+
+    const totalEntries = buf.readUInt16LE(eocdOffset + 10);
+    const cdOffset = buf.readUInt32LE(eocdOffset + 16);
+    const cdSize = buf.readUInt32LE(eocdOffset + 12);
+    
+    const cdBuf = Buffer.alloc(cdSize);
+    fs.readSync(fd, cdBuf, 0, cdSize, cdOffset);
+    
+    const entries = [];
+    let offset = 0;
+    for (let i = 0; i < totalEntries; i++) {
+      if (offset + 46 > cdSize || cdBuf.readUInt32LE(offset) !== 0x02014b50) break;
+      const nameLen = cdBuf.readUInt16LE(offset + 28);
+      const extraLen = cdBuf.readUInt16LE(offset + 30);
+      const commentLen = cdBuf.readUInt16LE(offset + 32);
+      
+      const name = cdBuf.toString('utf8', offset + 46, offset + 46 + nameLen);
+      entries.push(name.trim().replace(/\\/g, '/'));
+      
+      offset += 46 + nameLen + extraLen + commentLen;
+    }
+    return entries.filter(Boolean);
+  } finally {
+    fs.closeSync(fd);
+  }
 }
 
 /**
