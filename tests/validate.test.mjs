@@ -81,33 +81,36 @@ test('validateRepository verifies repo rules V1-V6 via fixtures', async () => {
 
 test('validateRepository history check in temp repo', async () => {
   const tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'history-test-'));
-  
-  execSync('git init', { cwd: tmpRepo });
-  execSync('git config user.name "Test"', { cwd: tmpRepo });
-  execSync('git config user.email "test@example.com"', { cwd: tmpRepo });
-  
-  const denylistPath = path.join(tmpRepo, '.validate-denylist');
-  fs.writeFileSync(denylistPath, 'Hoa_Mai');
+  try {
+    execSync('git init', { cwd: tmpRepo });
+    execSync('git config user.name "Test"', { cwd: tmpRepo });
+    execSync('git config user.email "test@example.com"', { cwd: tmpRepo });
+    
+    const denylistPath = path.join(tmpRepo, '.validate-denylist');
+    fs.writeFileSync(denylistPath, 'Hoa_Mai');
 
-  fs.writeFileSync(path.join(tmpRepo, 'file.md'), 'This has hoamai.vn inside');
-  execSync('git add file.md', { cwd: tmpRepo });
-  execSync('git commit -m "add file"', { cwd: tmpRepo });
+    fs.writeFileSync(path.join(tmpRepo, 'file.md'), 'This has hoamai.vn inside');
+    execSync('git add file.md', { cwd: tmpRepo });
+    execSync('git commit -m "add file"', { cwd: tmpRepo });
 
-  fs.unlinkSync(path.join(tmpRepo, 'file.md'));
-  execSync('git add file.md', { cwd: tmpRepo });
-  execSync('git commit -m "remove file"', { cwd: tmpRepo });
+    fs.unlinkSync(path.join(tmpRepo, 'file.md'));
+    execSync('git add file.md', { cwd: tmpRepo });
+    execSync('git commit -m "remove file"', { cwd: tmpRepo });
 
-  // Assert worktree is clean
-  const resWorktree = await validateRepository({ rootDir: tmpRepo, denylistPath, checkHistory: false });
-  assert.strictEqual(resWorktree.errors.length, 0, `Worktree should be clean`);
+    // Assert worktree is clean
+    const resWorktree = await validateRepository({ rootDir: tmpRepo, denylistPath, checkHistory: false });
+    assert.strictEqual(resWorktree.errors.length, 0, `Worktree should be clean`);
 
-  // Assert history detects it
-  const result = await validateRepository({ rootDir: tmpRepo, denylistPath, checkHistory: true });
-  const v3Errors = result.errors.filter(e => e.rule === 'V3');
-  assert.ok(v3Errors.length > 0);
-  assert.ok(v3Errors.some(e => e.message.includes('[git history]')));
-  assert.ok(v3Errors.some(e => e.message.includes('entry #1')));
-  assert.ok(!v3Errors.some(e => e.message.toLowerCase().includes('hoa_mai')));
+    // Assert history detects it
+    const result = await validateRepository({ rootDir: tmpRepo, denylistPath, checkHistory: true });
+    const v3Errors = result.errors.filter(e => e.rule === 'V3');
+    assert.ok(v3Errors.length > 0);
+    assert.ok(v3Errors.some(e => e.message.includes('[git history]')));
+    assert.ok(v3Errors.some(e => e.message.includes('entry #1')));
+    assert.ok(!v3Errors.some(e => e.message.toLowerCase().includes('hoa_mai')));
+  } finally {
+    fs.rmSync(tmpRepo, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+  }
 });
 
 test('validateRepository verifies real repo root with 0 errors', async () => {
