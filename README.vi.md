@@ -17,16 +17,19 @@ Gói kỹ năng WordPress đa tác vụ cho Antigravity, Claude Code và Codex. 
 
 Sử dụng:
 ```
+Usage:
 node scripts/install.mjs [options]
 npx github:khoazandev/Wordpress-agent-skills [options]
 
---agents=<list>     antigravity,claude,codex (mặc định: cả 3)
---project=<path>    cài vào repo dự án thay vì global
---skills=<list>     chỉ cài một số skill (mặc định: tất cả)
---dry-run           in kế hoạch, không ghi
---uninstall         gỡ các skill do tool này cài
---force             thay thế thư mục không có marker (luôn backup) / bỏ qua cảnh báo plugin
+--agents=<list>     antigravity,claude,codex (default: all three)
+--project=<path>    install into project repo instead of global
+--skills=<list>     install only specified skills (default: all)
+--dry-run           print plan, do not write
+--uninstall         remove skills installed by this tool
+--force             replace unmanaged dirs with a backup / ignore plugin detection
 --help
+
+Exit codes: 0 ok, 1 error, 2 conflicts remain
 ```
 
 Mã thoát (Exit codes): 0 (thành công), 1 (lỗi), 2 (vẫn còn xung đột: các thư mục skill hiện có không chứa marker của gói cài sẽ bị bỏ qua).

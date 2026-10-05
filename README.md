@@ -17,16 +17,19 @@ Multi-agent WordPress skill pack for Antigravity, Claude Code, and Codex. Specif
 
 Usage:
 ```
+Usage:
 node scripts/install.mjs [options]
 npx github:khoazandev/Wordpress-agent-skills [options]
 
---agents=<list>     antigravity,claude,codex (mặc định: cả 3)
---project=<path>    cài vào repo dự án thay vì global
---skills=<list>     chỉ cài một số skill (mặc định: tất cả)
---dry-run           in kế hoạch, không ghi
---uninstall         gỡ các skill do tool này cài
---force             thay thế thư mục không có marker (luôn backup) / bỏ qua cảnh báo plugin
+--agents=<list>     antigravity,claude,codex (default: all three)
+--project=<path>    install into project repo instead of global
+--skills=<list>     install only specified skills (default: all)
+--dry-run           print plan, do not write
+--uninstall         remove skills installed by this tool
+--force             replace unmanaged dirs with a backup / ignore plugin detection
 --help
+
+Exit codes: 0 ok, 1 error, 2 conflicts remain
 ```
 
 Exit codes: 0 (success), 1 (error), 2 (unresolved conflicts remain: existing skill dirs without our marker were left untouched).

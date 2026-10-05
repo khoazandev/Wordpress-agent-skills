@@ -20,7 +20,7 @@ skills/my-new-skill/
 
 ## Frontmatter Requirements
 Must use strict single-line frontmatter for compatibility with simple parsers.
-- **Spec §8.1 Strict Subset**: Only `\"` and `\\` escapes are allowed. Plain scalars must not start with `'`, `"`, `>`, `|`, `[`, `{`, `&`, `*`, `!` nor contain `: ` or ` #`. No multi-line or block scalars. Error message for users failing this typically shows as parse errors or validation failures.
+- **Spec §8.1 Strict Subset**: Only `\"` and `\\` escapes are allowed. Plain scalars must not start with `'`, `"`, `>`, `|`, `[`, `{`, `&`, `*`, `!` nor contain `: ` or ` #`. No multi-line or block scalars. Failing this emits the exact parser error: `Line <N>: unsupported frontmatter syntax; use a single-line double-quoted string`.
 - `description` is ALWAYS a single-line double-quoted string.
 - `name` and `compatibility` are single-line scalars.
 

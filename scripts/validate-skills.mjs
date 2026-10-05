@@ -53,7 +53,9 @@ export async function validateRepository(options = {}) {
         const skillContent = rawBuffer.toString('utf8');
         const parsed = parseFrontmatter(skillContent);
         if (parsed.error) {
-          addError(path.relative(rootDir, skillFile).replace(/\\/g, '/'), 1, 'V1', parsed.error);
+          const lineMatch = parsed.error.match(/^Line (\d+):/);
+          const lineNum = lineMatch ? parseInt(lineMatch[1], 10) : 1;
+          addError(path.relative(rootDir, skillFile).replace(/\\/g, '/'), lineNum, 'V1', parsed.error);
         } else {
           const { data } = parsed;
           if (data.name !== skillName) {

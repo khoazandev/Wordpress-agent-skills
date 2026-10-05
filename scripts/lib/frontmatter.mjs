@@ -35,7 +35,7 @@ export function parseFrontmatter(markdownText) {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const lineNum = i + 1;
+    const lineNum = i + 2;
 
     // Skip empty lines or full-line comments
     if (!line.trim() || line.trim().startsWith('#')) {

@@ -79,6 +79,14 @@ test('validateRepository verifies repo rules V1-V6 via fixtures', async () => {
   }
 });
 
+test('validateRepository reports exact document line for frontmatter error', async () => {
+  const res = await validateRepository({ rootDir: path.join(fixturesDir, 'v1-invalid'), suppressNoDenylistWarning: true });
+  const v1Errors = res.errors.filter(e => e.rule === 'V1');
+  assert.ok(v1Errors.length > 0);
+  assert.strictEqual(v1Errors[0].line, 3);
+  assert.match(v1Errors[0].formatted, /:3: \[V1\] Line 3:/);
+});
+
 test('validateRepository history check in temp repo', async () => {
   const tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'history-test-'));
   try {

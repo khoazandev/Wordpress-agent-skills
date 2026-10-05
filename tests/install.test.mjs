@@ -412,4 +412,14 @@ test('Unknown skill → exit 1', async () => {
 test('Smoke spawn --help', async () => {
   const stdout = execSync(`node scripts/install.mjs --help`).toString();
   assert.ok(stdout.includes('Usage:'));
+  assert.ok(stdout.includes('--agents=<list>     antigravity,claude,codex (default: all three)'));
+  assert.ok(stdout.includes('--project=<path>    install into project repo instead of global'));
+  assert.ok(stdout.includes('--skills=<list>     install only specified skills (default: all)'));
+  assert.ok(stdout.includes('--dry-run           print plan, do not write'));
+  assert.ok(stdout.includes('--uninstall         remove skills installed by this tool'));
+  assert.ok(stdout.includes('--force             replace unmanaged dirs with a backup / ignore plugin detection'));
+  assert.ok(stdout.includes('--help'));
+  assert.ok(stdout.includes('Exit codes: 0 ok, 1 error, 2 conflicts remain'));
+  assert.strictEqual(stdout.includes('mặc định'), false);
+  assert.strictEqual(stdout.includes('cài vào repo'), false);
 });

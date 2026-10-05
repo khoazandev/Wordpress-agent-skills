@@ -25,7 +25,7 @@ description: Unquoted description with : colon
 compatibility: all
 ---`;
   const r1 = parseFrontmatter(unquoted);
-  assert.ok(r1.error && r1.error.includes('description must be a double-quoted string'));
+  assert.strictEqual(r1.error, 'Line 3: description must be a double-quoted string ("...")');
 
   const blockScalarFolded = `---
 name: bad-skill
