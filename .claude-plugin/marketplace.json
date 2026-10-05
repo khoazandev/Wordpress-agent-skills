@@ -1,0 +1,14 @@
+{
+  "name": "wordpress-agent-skills",
+  "owner": {
+    "name": "khoazandev"
+  },
+  "plugins": [
+    {
+      "name": "wordpress-agent-skills",
+      "source": "./",
+      "version": "1.0.0",
+      "description": "Multi-agent WordPress skill pack for Antigravity, Claude Code, and Codex"
+    }
+  ]
+}

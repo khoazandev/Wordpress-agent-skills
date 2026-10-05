@@ -1,0 +1,6 @@
+{
+  "name": "wordpress-agent-skills",
+  "displayName": "WordPress Agent Skills",
+  "description": "Multi-agent WordPress skill pack for Antigravity, Claude Code, and Codex",
+  "version": "1.0.0"
+}
