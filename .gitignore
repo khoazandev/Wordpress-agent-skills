@@ -7,3 +7,5 @@ Thumbs.db
 # Local-only list of private strings (client/project names) checked by validate-skills.mjs.
 # NEVER commit this file — publishing it would leak the very names it protects.
 .validate-denylist
+.local/
+.sanitize-map.local.json

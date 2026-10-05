@@ -163,8 +163,8 @@ Wordpress-agent-skills/
 | **`flatsome-css-architecture`** (SKILL.md **và** `references/architecture-ruleset.md`) | Toàn bộ, gồm `description` trong frontmatter | Quét bằng V3 (denylist + squash) ở S0.5. Mọi domain hoặc tên khách tìm thấy được xử lý như dòng trên. Nhãn section chung như `[HOME:WHY-US]` được giữ lại |
 | Byte-length serialized trong test | `tests/test_safe_replacer.mjs` (chuỗi `s:27:"http://localhost/<project>"`) | Tính lại độ dài theo chuỗi mới (`http://localhost/demo_site` = 26 byte). Test phải tiếp tục pass |
 | Binary cố định (đường dẫn XAMPP mặc định tới `php.exe`, `mysqldump.exe`) | `bundler.mjs`, `cleaner.mjs`, `db_sanitizer.mjs`, `test_config_patcher`, `test_db_sanitizer`, `test_installer_builder` | Thêm `skills/wordpress-packaging-handover/scripts/lib/find-binary.mjs` → `findBinary(name)`. Thứ tự tìm: (1) env `PHP_BIN` / `MYSQLDUMP_BIN` / `MYSQL_BIN`, (2) `PATH`, (3) ứng viên phổ biến: XAMPP, Laragon (glob phiên bản), MAMP, `/usr/bin`, `/usr/local/bin`, `/opt/homebrew/bin`. Không tìm thấy thì trả `null`. Có test riêng `test_find_binary.mjs` |
-| Test phụ thuộc site thật | `test_db_sanitizer.mjs` (`LIVE_PROJECT_PATH`) | Chỉ chạy khi có env `WP_LIVE_PROJECT`, không có thì `t.skip()` |
-| Danh sách loại trừ của cleaner | `cleaner.mjs` (mục `.gemini`) | **Thay đổi hành vi:** giữ `.gemini`, bổ sung `.claude`, `.codex`, `.agents`, `.cursor`. Thêm test trong `test_cleaner.mjs` xác nhận 5 thư mục này bị loại khỏi gói. Ghi vào `CHANGELOG.md` mục *Changed* |
+| Test phụ thuộc site thật | `test_db_sanitizer.mjs` (`LIVE_PROJECT_PATH`, `runLivePhpQuery` cố định `dbname`) | `LIVE_PROJECT_PATH = process.env.WP_LIVE_PROJECT \|\| null`. Thông tin DB đọc qua `readDbConfig()`. Các test live đi qua helper `liveTest()`, không có env thì in `[SKIP]` (test cũ là script thường, không dùng `node:test`) |
+| Danh sách loại trừ khi đóng gói | `bundler.mjs` → `isIgnoredForStaging` (hiện chỉ có `.git`, `.github`, `.vscode`, `node_modules`, `scratch`). `cleaner.mjs` → `ignoredDirNames` chỉ là danh sách thư mục bộ quét rác bỏ qua | **Thay đổi hành vi:** thêm `.idea`, `.gemini`, `.claude`, `.codex`, `.agents`, `.cursor` vào `isIgnoredForStaging` (SKILL.md vốn đã hứa loại `.idea` nhưng code chưa làm), đồng bộ `ignoredDirNames`. Thêm test trong `test_bundler.mjs` xác nhận các thư mục này không vào staging. Ghi vào `CHANGELOG.md` mục *Changed* |
 
 Các ví dụ dùng domain công khai (`postimg.cc`, `imgur.com`, `unsplash.com`) trong skill zero-hardcode được **giữ**, vì đó là nội dung của luật.
 
@@ -377,7 +377,7 @@ README còn có các mục: danh sách skill, "Dùng cùng WordPress/agent-skill
   - V3 pattern: bắt `C:\Users\x`, `C:/Users/x`, `C:\\Users\\x` (đã escape), `/home/x/`, `/Users/x/`; bỏ qua `C:\Users\<user>`, `C:\Users\Public`, `D:/Users/Default`; **không** bỏ qua `C:\Users\Publicity`. Các chuỗi này nằm trong `tests/fixtures/` <!-- validate-allow-path -->
   - V3 squash bắt được dạng viết liền không dấu
   - `--history` trên một repo git tạm có commit cũ chứa chuỗi cấm
-- **Test `wordpress-packaging-handover`:** kết quả không tệ hơn mốc S0.4. Thêm test cleaner mới (4.1). Test cần PHP sẽ skip khi không tìm thấy PHP.
+- **Test `wordpress-packaging-handover`:** kết quả không tệ hơn mốc S0.4. Thêm test loại trừ thư mục agent/IDE trong `test_bundler.mjs` (4.1). Test cần PHP sẽ skip khi không tìm thấy PHP.
 - **`test_find_binary.mjs`:** `findBinary(name, deps = {})` nhận các tham số inject sau, mỗi cái có giá trị mặc định:
   - `env` (mặc định `process.env`)
   - `platform` (mặc định `process.platform`)
@@ -410,7 +410,7 @@ README còn có các mục: danh sách skill, "Dùng cùng WordPress/agent-skill
 
 ## 11. Phát hành (v1.0)
 
-- **Bump thủ công:** sửa `version` ở 4 manifest. V4 sẽ bắt nếu sót chỗ nào. Cập nhật `CHANGELOG.md` (có mục *Changed* cho thay đổi loại trừ của cleaner), rồi tag `v1.0.0` và tạo GitHub Release.
+- **Bump thủ công:** sửa `version` ở 4 manifest. V4 sẽ bắt nếu sót chỗ nào. Cập nhật `CHANGELOG.md` (có mục *Changed* cho thay đổi danh sách loại trừ khi đóng gói của bundler), rồi tag `v1.0.0` và tạo GitHub Release.
 - **Trước push đầu tiên:** chạy `npm run validate -- --history` (4.2 bước 6) và tạo secret `VALIDATE_DENYLIST` trên GitHub.
 - **Merge PR từ fork** (CI không có secret nên CI xanh không đảm bảo sạch tên khách): người merge checkout nhánh PR và chạy `npm run validate -- --history` cục bộ trước khi merge. Quy tắc này ghi vào `AGENTS.md` và mục đóng góp của README.
 - **`docs/authoring-guide.md`:**
