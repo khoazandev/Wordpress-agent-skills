@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+Thumbs.db
+
+# Local-only list of private strings (client/project names) checked by validate-skills.mjs.
+# NEVER commit this file — publishing it would leak the very names it protects.
+.validate-denylist
