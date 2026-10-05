@@ -142,8 +142,11 @@ export async function main(argv, deps = {}) {
 
   function maskHome(fullPath) {
     const platform = deps.platform || process.platform;
-    const resolvedHome = path.resolve(homeDir);
-    const resolvedPath = path.resolve(fullPath);
+    const p = platform === 'win32' ? path.win32 : path.posix;
+    
+    // Normalize both paths using the appropriate path module
+    const resolvedHome = p.resolve(homeDir);
+    const resolvedPath = p.resolve(fullPath);
     let homeStr = resolvedHome;
     let pathStr = resolvedPath;
     
@@ -153,8 +156,8 @@ export async function main(argv, deps = {}) {
     }
     
     if (pathStr === homeStr) return '~';
-    if (pathStr.startsWith(homeStr + path.sep)) {
-      return '~' + path.sep + resolvedPath.substring(resolvedHome.length + 1);
+    if (pathStr.startsWith(homeStr + p.sep)) {
+      return '~' + p.sep + resolvedPath.substring(resolvedHome.length + 1);
     }
     return resolvedPath;
   }

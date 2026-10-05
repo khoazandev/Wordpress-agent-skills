@@ -30,21 +30,39 @@ test('ESM homedir works when WAS_HOME is unset (inject deps.homedir)', async () 
   }
 });
 
-test('maskHome helper is robust on mixed-case Windows paths', async () => {
+test('maskHome helper is robust on platform-specific paths (boundary, mixed case)', async () => {
   let maskHome;
+  
+  // Win32 tests
   await main(['--dry-run'], {
-    env: { WAS_HOME: 'C:\\\\Users\\\\TestUser' }, // <!-- validate-allow-path -->
+    env: { WAS_HOME: 'C:\\\\Users\\\\Al' }, // <!-- validate-allow-path -->
     platform: 'win32',
-    stdout: () => {},
-    stderr: () => {},
+    stdout: () => {}, stderr: () => {},
     _export_maskHome: (fn) => { maskHome = fn; }
   });
   
-  assert.ok(maskHome);
-  assert.strictEqual(maskHome('C:\\\\Users\\\\testuser\\\\foo'), '~' + path.sep + 'foo'); // <!-- validate-allow-path -->
-  assert.strictEqual(maskHome('c:\\\\users\\\\TESTUSER\\\\foo'), '~' + path.sep + 'foo');
-  assert.strictEqual(maskHome('C:\\\\Users\\\\TestUser'), '~'); // <!-- validate-allow-path -->
-  assert.strictEqual(maskHome('D:\\\\Other\\\\Path'), path.resolve('D:\\\\Other\\\\Path'));
+  const pathWin32 = path.win32;
+  // Boundary check
+  const pathAlice = pathWin32.resolve('C:\\\\Users\\\\Alice\\\\x'); // <!-- validate-allow-path -->
+  assert.strictEqual(maskHome('C:\\\\Users\\\\Alice\\\\x'), pathAlice); // <!-- validate-allow-path -->
+  
+  // Mixed case check
+  assert.strictEqual(maskHome('c:\\\\users\\\\AL\\\\foo'), '~' + pathWin32.sep + 'foo'); // <!-- validate-allow-path -->
+  assert.strictEqual(maskHome('C:\\\\Users\\\\Al'), '~'); // <!-- validate-allow-path -->
+  
+  // Posix tests
+  await main(['--dry-run'], {
+    env: { WAS_HOME: '/home/al' }, // <!-- validate-allow-path -->
+    platform: 'posix', // The script checks platform === 'win32' else posix
+    stdout: () => {}, stderr: () => {},
+    _export_maskHome: (fn) => { maskHome = fn; }
+  });
+  
+  const pathPosix = path.posix;
+  // Boundary check
+  const posixAlice = pathPosix.resolve('/home/alice/x'); // <!-- validate-allow-path -->
+  assert.strictEqual(maskHome('/home/alice/x'), posixAlice); // <!-- validate-allow-path -->
+  assert.strictEqual(maskHome('/home/al/foo'), '~' + pathPosix.sep + 'foo'); // <!-- validate-allow-path -->
 });
 
 test('CLI dry-run prints action table with zero writes', async () => {
@@ -85,23 +103,24 @@ test('Global installation puts marker and skills into destination', async () => 
   }
 });
 
-test('Antigravity layout with/without config and env override', () => {
+test('Antigravity layout with/without config and env override via main()', async () => {
   const home = setupTempHome();
   try {
     const gemini = path.join(home, '.gemini');
+    
     // Without config -> antigravity/skills
-    let targets = resolveInstallTargets({ agents: ['antigravity'], env: { WAS_HOME: home }, exists: fs.existsSync });
-    assert.strictEqual(targets[0].targetDir, path.join(gemini, 'antigravity', 'skills'));
+    await main(['--agents=antigravity', '--skills=wp-agency-router'], { env: { WAS_HOME: home }, stdout: () => {}, stderr: () => {} });
+    assert.ok(fs.existsSync(path.join(gemini, 'antigravity', 'skills', 'wp-agency-router')));
     
     // With config -> config/skills
     fs.mkdirSync(path.join(gemini, 'config'), { recursive: true });
-    targets = resolveInstallTargets({ agents: ['antigravity'], env: { WAS_HOME: home }, exists: fs.existsSync });
-    assert.strictEqual(targets[0].targetDir, path.join(gemini, 'config', 'skills'));
+    await main(['--agents=antigravity', '--skills=flatsome-css-architecture'], { env: { WAS_HOME: home }, stdout: () => {}, stderr: () => {} });
+    assert.ok(fs.existsSync(path.join(gemini, 'config', 'skills', 'flatsome-css-architecture')));
     
     // Env override -> overrides all
     const envOverride = path.join(home, 'my-custom');
-    targets = resolveInstallTargets({ agents: ['antigravity'], env: { WAS_HOME: home, ANTIGRAVITY_SKILLS_DIR: envOverride }, exists: fs.existsSync });
-    assert.strictEqual(targets[0].targetDir, envOverride);
+    await main(['--agents=antigravity', '--skills=flatsome-uxbuilder-design'], { env: { WAS_HOME: home, ANTIGRAVITY_SKILLS_DIR: envOverride }, stdout: () => {}, stderr: () => {} });
+    assert.ok(fs.existsSync(path.join(envOverride, 'flatsome-uxbuilder-design')));
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }
@@ -258,7 +277,7 @@ test('Leftover staging cleaned at start', async () => {
   }
 });
 
-test('skip-plugin for antigravity and claude, and --force overrides', async () => {
+test('skip-plugin for antigravity and claude (including fallback scan), and --force overrides', async () => {
   const home = setupTempHome();
   try {
     // Mock antigravity plugin
@@ -289,6 +308,21 @@ test('skip-plugin for antigravity and claude, and --force overrides', async () =
       stderr: () => {}
     });
     assert.strictEqual(stdoutArr2.some(msg => msg.includes('skip-plugin')), false);
+    
+    // Now test Claude fallback scan
+    fs.rmSync(claudePlugins, { recursive: true, force: true });
+    const fallbackPath = path.join(home, '.claude', 'plugins', 'cache', 'x', 'wordpress-agent-skills', '1.0.0', '.claude-plugin');
+    fs.mkdirSync(fallbackPath, { recursive: true });
+    fs.writeFileSync(path.join(fallbackPath, 'plugin.json'), JSON.stringify({ name: 'wordpress-agent-skills' }));
+    
+    const stdoutArr3 = [];
+    await main(['--dry-run', '--agents=claude'], {
+      env: { WAS_HOME: home },
+      stdout: msg => stdoutArr3.push(msg),
+      stderr: () => {}
+    });
+    
+    assert.ok(stdoutArr3.some(msg => msg.includes('claude') && msg.includes('skip-plugin')));
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }
