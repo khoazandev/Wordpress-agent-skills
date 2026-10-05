@@ -1,0 +1,6 @@
+#!/bin/sh
+node scripts/validate-skills.mjs
+if [ $? -ne 0 ]; then
+  echo "Commit rejected: validation errors detected."
+  exit 1
+fi
