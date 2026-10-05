@@ -45,6 +45,8 @@ test('atomicInstallSkill stages and renames atomically with marker, filter, back
     fs.mkdirSync(srcUpdate, { recursive: true });
     fs.writeFileSync(path.join(srcUpdate, 'NEW_FILE.md'), 'new content', 'utf8');
     
+    const fakeNow = new Date('2026-10-05T10:00:00Z');
+    
     atomicInstallSkill({
       skillName: 'test-skill',
       srcDir: srcUpdate,
@@ -52,7 +54,8 @@ test('atomicInstallSkill stages and renames atomically with marker, filter, back
       version: '1.0.1',
       homeDir,
       agent: 'antigravity',
-      backupOld: true
+      backupOld: true,
+      now: fakeNow
     });
     
     assert.ok(fs.existsSync(path.join(destDir, 'test-skill', 'NEW_FILE.md')));
@@ -63,10 +66,11 @@ test('atomicInstallSkill stages and renames atomically with marker, filter, back
     
     // Backup was created
     const backupBase = path.join(homeDir, '.wordpress-agent-skills', 'backups');
-    const timestamps = fs.readdirSync(backupBase);
-    assert.strictEqual(timestamps.length, 1);
-    const backupPath = path.join(backupBase, timestamps[0], 'antigravity', 'test-skill');
-    assert.ok(fs.existsSync(path.join(backupPath, 'SKILL.md')));
+    const pad = (n) => String(n).padStart(2, '0');
+    const expectedTimestamp = `${fakeNow.getFullYear()}${pad(fakeNow.getMonth() + 1)}${pad(fakeNow.getDate())}-${pad(fakeNow.getHours())}${pad(fakeNow.getMinutes())}${pad(fakeNow.getSeconds())}`;
+    
+    const backupPath = path.join(backupBase, expectedTimestamp, 'antigravity', 'test-skill');
+    assert.ok(fs.existsSync(path.join(backupPath, 'SKILL.md')), 'Backup created with specific timestamp');
     
     // Injected rename failure -> rollback
     const srcFail = path.join(tmpRoot, 'src-fail');
@@ -103,6 +107,47 @@ test('atomicInstallSkill stages and renames atomically with marker, filter, back
     assert.strictEqual(readMarker(path.join(tmpRoot, 'non-existent')), null);
     fs.writeFileSync(path.join(destDir, 'test-skill', '.wordpress-agent-skills.json'), 'invalid', 'utf8');
     assert.strictEqual(readMarker(path.join(destDir, 'test-skill')), null);
+  } finally {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  }
+});
+
+test('cleanLeftoverStaging recovers missing dest and deletes existing dest leftovers', () => {
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'fs-utils-clean-'));
+  try {
+    const skillsRoot = path.join(tmpRoot, 'skills');
+    const stagingRoot = path.join(tmpRoot, '.wordpress-agent-skills-staging');
+    
+    fs.mkdirSync(skillsRoot, { recursive: true });
+    fs.mkdirSync(stagingRoot, { recursive: true });
+    
+    // a) Leftover -old- dir with missing dest -> recovered
+    const recoverName = 'skill-recover-old-deadbeef';
+    fs.mkdirSync(path.join(stagingRoot, recoverName), { recursive: true });
+    fs.writeFileSync(path.join(stagingRoot, recoverName, 'OK.md'), 'recover me', 'utf8');
+    
+    // b) Leftover -old- dir whose dest exists -> deleted
+    const deleteOldName = 'skill-delete-old-deadbeef';
+    fs.mkdirSync(path.join(stagingRoot, deleteOldName), { recursive: true });
+    fs.mkdirSync(path.join(skillsRoot, 'skill-delete'), { recursive: true }); // dest exists
+    fs.writeFileSync(path.join(skillsRoot, 'skill-delete', 'EXIST.md'), 'here', 'utf8');
+    
+    // Plain leftover stage dir -> deleted
+    const plainName = 'skill-plain-deadbeef';
+    fs.mkdirSync(path.join(stagingRoot, plainName), { recursive: true });
+    
+    cleanLeftoverStaging(skillsRoot);
+    
+    // Check (a)
+    assert.ok(fs.existsSync(path.join(skillsRoot, 'skill-recover', 'OK.md')), 'Should recover missing dest');
+    assert.ok(!fs.existsSync(path.join(stagingRoot, recoverName)), 'Staging for recovered should be gone');
+    
+    // Check (b)
+    assert.ok(!fs.existsSync(path.join(stagingRoot, deleteOldName)), 'Should delete leftover old if dest exists');
+    assert.ok(!fs.existsSync(path.join(stagingRoot, plainName)), 'Should delete plain leftover stage dir');
+    
+    // Staging root empty -> deleted
+    assert.ok(!fs.existsSync(stagingRoot), 'Staging root should be deleted');
   } finally {
     fs.rmSync(tmpRoot, { recursive: true, force: true });
   }

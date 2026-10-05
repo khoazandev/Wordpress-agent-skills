@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import crypto from 'node:crypto';
 
 export function copyFiltered(src, dest, fsImpl = fs) {
@@ -26,7 +25,29 @@ export function cleanLeftoverStaging(skillsRoot, fsImpl = fs) {
   const stagingRoot = path.join(path.dirname(skillsRoot), '.wordpress-agent-skills-staging');
   if (fsImpl.existsSync(stagingRoot)) {
     try {
-      fsImpl.rmSync(stagingRoot, { recursive: true, force: true });
+      const entries = fsImpl.readdirSync(stagingRoot);
+      for (const name of entries) {
+        const match = name.match(/^(.+)-old-[0-9a-f]{8}$/);
+        if (match) {
+          const skillName = match[1];
+          const destPath = path.join(skillsRoot, skillName);
+          const oldPath = path.join(stagingRoot, name);
+          if (!fsImpl.existsSync(destPath)) {
+            try {
+              fsImpl.renameSync(oldPath, destPath);
+              continue;
+            } catch {}
+          }
+        }
+        try {
+          fsImpl.rmSync(path.join(stagingRoot, name), { recursive: true, force: true });
+        } catch {}
+      }
+      try {
+        if (fsImpl.readdirSync(stagingRoot).length === 0) {
+          fsImpl.rmSync(stagingRoot, { recursive: true, force: true });
+        }
+      } catch {}
     } catch {}
   }
 }
@@ -62,7 +83,7 @@ export function readMarker(dir, fsImpl = fs) {
   }
 }
 
-export function atomicInstallSkill({ skillName, srcDir, destSkillsRoot, version, agent, homeDir, backupOld = false, fsImpl = fs }) {
+export function atomicInstallSkill({ skillName, srcDir, destSkillsRoot, version, agent, homeDir, backupOld = false, fsImpl = fs, now }) {
   cleanLeftoverStaging(destSkillsRoot, fsImpl);
 
   const stagingRoot = path.join(path.dirname(destSkillsRoot), '.wordpress-agent-skills-staging');
@@ -97,7 +118,9 @@ export function atomicInstallSkill({ skillName, srcDir, destSkillsRoot, version,
       try {
         if (fsImpl.existsSync(destDir)) fsImpl.rmSync(destDir, { recursive: true, force: true });
         fsImpl.renameSync(oldBackupStaging, destDir);
-      } catch {}
+      } catch (rollbackErr) {
+        throw new Error(`Atomic installation of ${skillName} failed: ${err.message}. Rollback failed: old copy is left at staging/${path.basename(oldBackupStaging)}`);
+      }
     }
     try {
       if (fsImpl.existsSync(stageDir)) fsImpl.rmSync(stageDir, { recursive: true, force: true });
@@ -110,7 +133,7 @@ export function atomicInstallSkill({ skillName, srcDir, destSkillsRoot, version,
 
   if (hadExisting && fsImpl.existsSync(oldBackupStaging)) {
     if (backupOld) {
-      createBackup({ homeDir, agent, name: skillName }, oldBackupStaging, fsImpl);
+      createBackup({ homeDir, agent, name: skillName, now }, oldBackupStaging, fsImpl);
     } else {
       try { fsImpl.rmSync(oldBackupStaging, { recursive: true, force: true }); } catch {}
     }
