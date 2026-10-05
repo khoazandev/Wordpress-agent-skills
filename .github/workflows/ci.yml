@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node-version: [20, 22, 24]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Setup PHP (Node 22 only)
+        if: matrix.node-version == 22
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Inject Denylist Secret if available
+        shell: bash
+        run: |
+          if [ -n "$SECRET_DENYLIST" ]; then
+            printf '%s\n' "$SECRET_DENYLIST" > .validate-denylist
+            echo "Denylist injected for CI validation."
+          else
+            echo "::warning::VALIDATE_DENYLIST secret not set. Skipping private denylist check on fork."
+          fi
+        env:
+          SECRET_DENYLIST: ${{ secrets.VALIDATE_DENYLIST }}
+
+      - name: Validate Skills & History
+        run: node scripts/validate-skills.mjs --history
+
+      - name: Run Test Suite
+        run: npm test
+
+      - name: Verify Dry-Run Project Install
+        shell: bash
+        run: |
+          node scripts/install.mjs --dry-run --project "$RUNNER_TEMP/p"
+          test ! -e "$RUNNER_TEMP/p"
+        env:
+          WAS_HOME: ${{ runner.temp }}/home
