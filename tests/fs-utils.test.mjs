@@ -152,3 +152,30 @@ test('cleanLeftoverStaging recovers missing dest and deletes existing dest lefto
     fs.rmSync(tmpRoot, { recursive: true, force: true });
   }
 });
+
+test('cleanLeftoverStaging preserves -old- dir if renameSync throws', () => {
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'fs-utils-clean-fail-'));
+  try {
+    const skillsRoot = path.join(tmpRoot, 'skills');
+    const stagingRoot = path.join(tmpRoot, '.wordpress-agent-skills-staging');
+    
+    fs.mkdirSync(skillsRoot, { recursive: true });
+    fs.mkdirSync(stagingRoot, { recursive: true });
+    
+    const recoverName = 'skill-fail-old-deadbeef';
+    fs.mkdirSync(path.join(stagingRoot, recoverName), { recursive: true });
+    fs.writeFileSync(path.join(stagingRoot, recoverName, 'OK.md'), 'recover me', 'utf8');
+    
+    const fsMock = { ...fs };
+    const originalRenameSync = fs.renameSync;
+    fsMock.renameSync = (src, dest) => {
+      throw new Error('Injected rename failure');
+    };
+    
+    cleanLeftoverStaging(skillsRoot, fsMock);
+    
+    assert.ok(fs.existsSync(path.join(stagingRoot, recoverName)), '-old- dir must still exist after rename failure');
+  } finally {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  }
+});

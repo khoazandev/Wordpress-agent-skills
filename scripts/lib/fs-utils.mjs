@@ -35,8 +35,8 @@ export function cleanLeftoverStaging(skillsRoot, fsImpl = fs) {
           if (!fsImpl.existsSync(destPath)) {
             try {
               fsImpl.renameSync(oldPath, destPath);
-              continue;
             } catch {}
+            continue;
           }
         }
         try {
