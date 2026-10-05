@@ -58,6 +58,15 @@ function createFixture(fixtureName) {
   writeDummy('scratch/temp.txt', 'scratchpad notes');
   writeDummy('scratch/nested/cache.json', '{"cached": true}');
 
+  // Agent / IDE metadata directories
+  writeDummy('.idea/workspace.xml', '<project></project>');
+  writeDummy('.gemini/config.json', '{}');
+  writeDummy('.claude/history.json', '[]');
+  writeDummy('.claude/history.bak', 'old history'); // this must remain because .claude is ignored
+  writeDummy('.codex/state', '1');
+  writeDummy('.agents/metadata', 'info');
+  writeDummy('.cursor/rules', 'rule');
+
   // 4. Default themes & active theme
   writeDummy('wp-content/themes/twentytwentyone/style.css', '/* Theme Name: Twenty Twenty-One */');
   writeDummy('wp-content/themes/twentytwentytwo/style.css', '/* Theme Name: Twenty Twenty-Two */');
@@ -119,6 +128,11 @@ await runAsyncTest('Test 1: Full Clean removes junk, design files, logs, scratch
     assert(fs.existsSync(path.join(fixtureDir, 'wp-content/themes/active-theme/style.css')), 'active-theme must NOT be deleted');
     assert(fs.existsSync(path.join(fixtureDir, 'index.php')), 'core index.php must NOT be deleted');
     assert(fs.existsSync(path.join(fixtureDir, 'wp-config-sample.php')), 'wp-config-sample.php must NOT be deleted');
+
+    for (const dir of ['.idea', '.gemini', '.claude', '.codex', '.agents', '.cursor']) {
+      assert(fs.existsSync(path.join(fixtureDir, dir)), `${dir} must be ignored by cleaner and remain on disk`);
+    }
+    assert(fs.existsSync(path.join(fixtureDir, '.claude', 'history.bak')), '.claude/history.bak must remain on disk because .claude is ignored');
 
     // Verify skippedWhitelisted contains active plugins and active theme
     const whitelistedNames = result.skippedWhitelisted.join(' ');

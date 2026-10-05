@@ -371,7 +371,11 @@ export async function cleanProject(projectPath, options = {}) {
     'dong_goi_du_an',
     '.gemini',
     '.vscode',
-    '.idea'
+    '.idea',
+    '.claude',
+    '.codex',
+    '.agents',
+    '.cursor'
   ]);
 
   function scanJunkFiles(currentDir) {

@@ -388,7 +388,7 @@ export async function bundleProject(projectPath, outputPackageDir, options = {})
     if (resolved === resolvedOutputDir || resolved.startsWith(resolvedOutputDir + path.sep)) return true;
 
     // Loại bỏ VCS, package manager & cache folders
-    if (['.git', '.github', '.vscode', 'node_modules', 'scratch'].includes(baseName)) return true;
+    if (['.git', '.github', '.vscode', '.idea', '.gemini', '.claude', '.codex', '.agents', '.cursor', 'node_modules', 'scratch'].includes(baseName)) return true;
 
     // Loại bỏ wc-logs
     if (baseName.toLowerCase() === 'wc-logs') return true;

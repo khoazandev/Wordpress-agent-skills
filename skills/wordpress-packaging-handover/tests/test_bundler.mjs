@@ -108,6 +108,13 @@ $table_prefix = 'wp_';
   fs.mkdirSync(internalOutputDir, { recursive: true });
   fs.writeFileSync(path.join(internalOutputDir, 'old_backup_to_ignore.zip'), 'FAKE_ZIP_DATA', 'utf8');
 
+  // 7. IDE and Agent metadata directories
+  const agentDirs = ['.idea', '.gemini', '.claude', '.codex', '.agents', '.cursor'];
+  for (const dir of agentDirs) {
+    fs.mkdirSync(path.join(tempDir, 'wp-admin', dir), { recursive: true });
+    fs.writeFileSync(path.join(tempDir, 'wp-admin', dir, 'test_file.txt'), 'data', 'utf8');
+  }
+
   return {
     projectDir: tempDir,
     internalOutputDir,
@@ -208,6 +215,10 @@ async function runSuite() {
     assert.ok(!fullEntries.some(e => e.includes('inactive-plugin')), 'inactive-plugin must be excluded when active plugins whitelist is provided');
     // - junk files must be excluded
     assert.ok(!fullEntries.some(e => e.includes('test.bak')), '*.bak must be excluded');
+    // - agent/IDE folders must be excluded
+    for (const dir of ['.idea', '.gemini', '.claude', '.codex', '.agents', '.cursor']) {
+      assert.ok(!fullEntries.some(e => e.includes('wp-admin/' + dir + '/test_file.txt')), `${dir} must be excluded from website zip`);
+    }
 
     // Clean up
     fs.rmSync(projectDir, { recursive: true, force: true });
